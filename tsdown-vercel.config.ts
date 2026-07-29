@@ -1,12 +1,16 @@
 import { defineConfig } from 'tsdown';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 const require = createRequire(import.meta.url);
 
-// jsdom reads its default-stylesheet.css via __dirname at runtime. Bundling
-// jsdom (necessary to fix @exodus/bytes ESM require() on Vercel's runtime)
-// breaks that path resolution, so inline the CSS at build time instead.
+// Bundling jsdom (necessary to fix @exodus/bytes ESM require() on Vercel's
+// runtime) pulls in dependencies that read data files via paths the bundler
+// leaves as runtime requires:
+//   - jsdom reads default-stylesheet.css via fs.readFileSync(__dirname-relative)
+//   - css-tree reads data/patch.json + mdn-data/css/*.json via require()
+// Inline both at build time so no runtime file resolution is needed.
 const jsdomCssLiteral = JSON.stringify(
     readFileSync(require.resolve('jsdom/lib/jsdom/browser/default-stylesheet.css'), 'utf-8')
 );
@@ -34,16 +38,36 @@ export default defineConfig({
     },
     plugins: [
         {
-            name: 'inline-jsdom-default-stylesheet',
+            name: 'inline-bundled-data-files',
+            enforce: 'pre',
             transform(code, id) {
-                if (!id.includes('jsdom') || !id.endsWith('computed-style.js')) {
+                if (!/(jsdom|css-tree|@csstools|@exodus\/bytes|@asamuzakjp)/.test(id)) {
                     return null;
                 }
-                const replaced = code.replace(
-                    /const defaultStyleSheet = fs\.readFileSync\([\s\S]*?\);/,
-                    `const defaultStyleSheet = ${jsdomCssLiteral};`
+                let result = code;
+                // jsdom's default-stylesheet.css is read via fs.readFileSync at
+                // module load; bundling breaks the __dirname-relative path.
+                if (id.endsWith('computed-style.js')) {
+                    result = result.replace(
+                        /const defaultStyleSheet = fs\.readFileSync\([\s\S]*?\);/,
+                        `const defaultStyleSheet = ${jsdomCssLiteral};`
+                    );
+                }
+                // Inline static require('...json') data files (e.g. css-tree's
+                // data/patch.json and mdn-data/css/*.json) that the bundler would
+                // otherwise leave as runtime requires with broken paths.
+                result = result.replace(
+                    /\brequire\(\s*(['"])([^'"]+\.json)\1\s*\)/g,
+                    (_match, _quote, spec) => {
+                        try {
+                            const resolved = require.resolve(spec, { paths: [dirname(id)] });
+                            return `JSON.parse(${JSON.stringify(readFileSync(resolved, 'utf-8'))})`;
+                        } catch {
+                            return _match;
+                        }
+                    }
                 );
-                return replaced === code ? null : replaced;
+                return result === code ? null : result;
             },
         },
     ],
