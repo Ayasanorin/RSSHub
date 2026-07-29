@@ -1,4 +1,15 @@
 import { defineConfig } from 'tsdown';
+import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+
+const require = createRequire(import.meta.url);
+
+// jsdom reads its default-stylesheet.css via __dirname at runtime. Bundling
+// jsdom (necessary to fix @exodus/bytes ESM require() on Vercel's runtime)
+// breaks that path resolution, so inline the CSS at build time instead.
+const jsdomCssLiteral = JSON.stringify(
+    readFileSync(require.resolve('jsdom/lib/jsdom/browser/default-stylesheet.css'), 'utf-8')
+);
 
 export default defineConfig({
     entry: ['./lib/server.ts'],
@@ -21,4 +32,19 @@ export default defineConfig({
         //     cleanly trace the commonjs variant for the CJS consumer.
         alwaysBundle: ['jsdom', 'lru-cache'],
     },
+    plugins: [
+        {
+            name: 'inline-jsdom-default-stylesheet',
+            transform(code, id) {
+                if (!id.includes('jsdom') || !id.endsWith('computed-style.js')) {
+                    return null;
+                }
+                const replaced = code.replace(
+                    /const defaultStyleSheet = fs\.readFileSync\([\s\S]*?\);/,
+                    `const defaultStyleSheet = ${jsdomCssLiteral};`
+                );
+                return replaced === code ? null : replaced;
+            },
+        },
+    ],
 });
