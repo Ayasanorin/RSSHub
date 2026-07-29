@@ -11,9 +11,14 @@ export default defineConfig({
     // copy: [{ from: 'lib/assets', to: 'dist' }],
     deps: {
         onlyBundle: false,
-        // Vercel's Node.js runtime bridge does not support require() of ESM modules.
-        // jsdom (CJS) internally requires @exodus/bytes (ESM-only), which fails on
-        // Vercel at runtime. Bundling jsdom lets tsdown resolve its ESM deps at build time.
-        alwaysBundle: ['jsdom'],
+        // Vercel's Node.js runtime bridge does not support require() of ESM modules,
+        // and nft (node-file-trace) misses some conditional-export variants of
+        // externalized packages. Bundling these deps lets tsdown resolve them at
+        // build time, avoiding both problems.
+        //   - jsdom: CJS that requires ESM-only @exodus/bytes at runtime
+        //   - lru-cache: ESM with conditional exports; nft skips the commonjs variant
+        //     needed by path-scurry (via glob). Bundling RSSHub's reference lets nft
+        //     cleanly trace the commonjs variant for the CJS consumer.
+        alwaysBundle: ['jsdom', 'lru-cache'],
     },
 });
