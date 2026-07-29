@@ -1,0 +1,15 @@
+diff --git a/lib/coreBundle.js b/lib/coreBundle.js
+--- a/lib/coreBundle.js
++++ b/lib/coreBundle.js
+@@ -30794,7 +30794,11 @@
+         return [...new Set(executables)];
+       }
+     };
+-    registry = new Registry(require(import_path19.default.join(packageRoot, "browsers.json")));
++    try {
++      registry = new Registry(require(import_path19.default.join(packageRoot, "browsers.json")));
++    } catch (e) {
++      registry = new Registry({ browsers: [] });
++    }
+   }
+ });
