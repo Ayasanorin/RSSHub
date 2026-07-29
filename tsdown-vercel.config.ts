@@ -6,11 +6,13 @@ import { dirname } from 'node:path';
 const require = createRequire(import.meta.url);
 
 // Bundling jsdom (necessary to fix @exodus/bytes ESM require() on Vercel's
-// runtime) pulls in dependencies that read data files via paths the bundler
-// leaves as runtime requires:
+// runtime) pulls in dependencies that resolve data/worker files via paths the
+// bundler leaves as runtime requires with broken paths:
 //   - jsdom reads default-stylesheet.css via fs.readFileSync(__dirname-relative)
 //   - css-tree reads data/patch.json + mdn-data/css/*.json via require()
-// Inline both at build time so no runtime file resolution is needed.
+//   - jsdom require.resolve("./xhr-sync-worker.js") for sync XHR (never used at
+//     runtime in RSSHub, but evaluated at module load)
+// Inline/neutralize all three at build time.
 const jsdomCssLiteral = JSON.stringify(
     readFileSync(require.resolve('jsdom/lib/jsdom/browser/default-stylesheet.css'), 'utf-8')
 );
@@ -51,6 +53,15 @@ export default defineConfig({
                     result = result.replace(
                         /const defaultStyleSheet = fs\.readFileSync\([\s\S]*?\);/,
                         `const defaultStyleSheet = ${jsdomCssLiteral};`
+                    );
+                }
+                // jsdom resolves a sync-XHR worker file at module load. The worker
+                // is only spawned for synchronous XMLHttpRequest (never used in
+                // RSSHub), so neutralize the resolve to avoid a runtime ENOENT.
+                if (id.endsWith('XMLHttpRequest-impl.js')) {
+                    result = result.replace(
+                        /require\.resolve\(\s*(['"])\.\/xhr-sync-worker\.js\1\s*\)/g,
+                        '"xhr-sync-worker.js"'
                     );
                 }
                 // Inline static require('...json') data files (e.g. css-tree's
