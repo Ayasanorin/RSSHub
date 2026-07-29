@@ -30,6 +30,9 @@ patchedDependencies:
   patchright-core@1.61.1:
     hash: cd6a67066e6e787b2ddfb44b6b9d6ca7e0334722d6b049e2c66e706b6bac9b42
     path: patches/patchright-core@1.61.1.patch
+  html-encoding-sniffer@6.0.0:
+    hash: 6909d120c9059bd57e1a0ff20eceb6da323760f557147e168bb2fc4700dec9bb
+    path: patches/html-encoding-sniffer@6.0.0.patch
 
 importers:
 
