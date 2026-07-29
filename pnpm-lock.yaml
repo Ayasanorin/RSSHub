@@ -28,7 +28,7 @@ patchedDependencies:
     hash: afac79a31a3db94c953d49680bc5528468f051957d461e913d2e2dbf5cd22a8d
     path: patches/rss-parser@3.13.0.patch
   patchright-core@1.61.1:
-    hash: 522a23bbd8016d7ed5cd44739f07a9e98d695bc73bde6b795bd946830072a85c
+    hash: cd6a67066e6e787b2ddfb44b6b9d6ca7e0334722d6b049e2c66e706b6bac9b42
     path: patches/patchright-core@1.61.1.patch
 
 importers:
