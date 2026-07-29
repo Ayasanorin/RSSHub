@@ -11,5 +11,9 @@ export default defineConfig({
     // copy: [{ from: 'lib/assets', to: 'dist' }],
     deps: {
         onlyBundle: false,
+        // Vercel's Node.js runtime bridge does not support require() of ESM modules.
+        // jsdom (CJS) internally requires @exodus/bytes (ESM-only), which fails on
+        // Vercel at runtime. Bundling jsdom lets tsdown resolve its ESM deps at build time.
+        alwaysBundle: ['jsdom'],
     },
 });
